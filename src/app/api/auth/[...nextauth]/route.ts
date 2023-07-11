@@ -1,4 +1,4 @@
-import NextAuth from "next-auth";
+import NextAuth, { Profile } from "next-auth";
 import { NextAuthOptions } from "next-auth"
 
 declare module "next-auth/jwt" {
@@ -6,6 +6,24 @@ declare module "next-auth/jwt" {
         provider: string;
         idToken: string;
         accessToken: string;
+        profile: Profile;
+    }
+}
+
+declare module 'next-auth' {
+    interface User {
+        idToken?: string;
+        profile?: Profile;
+    }
+
+    interface Profile {
+        username?: string;
+        given_name?: string;
+        family_name?: string;
+    }
+
+    interface Session {
+        user: User;
     }
 }
 
@@ -26,7 +44,7 @@ const authOptions: NextAuthOptions = {
             },
             idToken: true,
             checks: ["pkce", "state"],
-            profile(profile) {                
+            profile(profile) {
                 return {
                     id: profile.sub,
                     name: profile.name,
@@ -40,18 +58,23 @@ const authOptions: NextAuthOptions = {
         strategy: "jwt",
     },
     callbacks: {
-        async session({ session, token }: any) {
-            // Adding the token to the session object so it's available in the client            
+        async session({ session, token }) {
+            // Adding the token to the session object so it's available in the client           
             if (token) {
                 session.user.idToken = token.idToken;
+                session.user.profile = token.profile;
             }
 
             return session;
         },
-        async jwt({ token, account }) {
+        async jwt({ token, account, profile, user }) {
             if (account) {
                 token.accessToken = account.access_token!
                 token.idToken = account.id_token!
+            }
+
+            if (profile) {
+                token.profile = profile;
             }
 
             return token;
